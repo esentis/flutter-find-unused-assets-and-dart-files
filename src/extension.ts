@@ -15,13 +15,15 @@ export function activate(context: vscode.ExtensionContext) {
       const assetsPath = `${rootPath}/assets/`;
       const libPath = `${rootPath}/lib/`;
 
-      const shellFindUnusedAssets = `find "${assetsPath}" -type f -name "*.png" -o -name "*.jpeg" -o -name "*.webp" -o -name "*.gif" -o -name "*.json" -o -name "*.jpg" -print0 | while read -d $'\\0' file; do
-      name="$(basename "$file")"
-      grep -rn -F -q "$name" "${libPath}"
-      if [ $? -ne 0 ]; then
-        echo "Unreferenced asset: $file"
-      fi
-    done`;
+      const shellFindUnusedAssets = `cd "${rootPath}" && 
+      find "${assetsPath}" -type f ! -name "*.ttf" ! -name "*.otf" -print0 | while read -d $'\\0' file; do
+        name="$(basename "$file")"
+        grep -rn -F -q "$name" "${libPath}"
+        if [ $? -ne 0 ]; then
+          echo "Unreferenced asset: $file"
+        fi
+      done
+      `;
 
       vscode.window.withProgress(
         {
