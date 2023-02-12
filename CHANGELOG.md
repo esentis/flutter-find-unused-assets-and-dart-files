@@ -2,6 +2,10 @@
 
 All notable changes of the extension will be documented in this file.
 
+## [0.0.3]
+
+- Resolves the issue where not all unreferenced assets were being displayed in the output
+
 ## [0.0.2]
 
 - Adds extension's icon
