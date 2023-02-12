@@ -1,9 +1,10 @@
 {
   "name": "flutter-find-unused-assets-and-dart-files",
   "publisher": "esentis",
-  "displayName": "Find unused assets and dart files",
+  "icon": "icon.png",
+  "displayName": "Flutter: Find unused assets and Dart files",
   "description": "Find unused assets & files to clean up your project.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -15,13 +16,13 @@
     "commands": [
       {
         "command": "unused-assets.findUnusedAssets",
-        "title": "Find Unused Dart Files & Assets"
+        "title": "Flutter: Find Unused Dart Files & Assets"
       }
     ]
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/esentis/flutter-find-unused-assets-and-dart-files.git"
+    "url": "https://github.com/esentis/flutter-find-unused-assets-and-dart-files"
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
