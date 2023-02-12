@@ -1,9 +1,12 @@
 # Change Log
 
-All notable changes to the "flutter-find-unused-assets-and-dart-files" extension will be documented in this file.
+All notable changes of the extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+## [0.0.2]
 
-## [Unreleased]
+- Adds extension's icon
+- Changes the title of the command to "Flutter: Find Unused Dart Files & Assets"
+
+## [0.0.1]
 
 - Initial release
