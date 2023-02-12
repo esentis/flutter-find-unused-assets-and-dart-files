@@ -4,7 +4,7 @@
   "icon": "icon.png",
   "displayName": "Flutter: Find unused assets and Dart files",
   "description": "Find unused assets & files to clean up your project.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.75.0"
   },
