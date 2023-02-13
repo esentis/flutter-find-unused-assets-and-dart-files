@@ -1,6 +1,6 @@
 ## Introduction
 
-This extension allows you to find unused assets and dart files in your project. Simply open the command palette (Cmd + Shift + P or Ctrl + Shift + P) and run the Find Unused Dart Files & Assets command. The output will be displayed in the Output panel of Visual Studio Code.
+This extension allows you to find unused assets, Dart files & dependencies in your project. Simply open the command palette (Cmd + Shift + P or Ctrl + Shift + P) and run the Find Unused Dart Files & Assets command. The output will be displayed in the Output panel of Visual Studio Code.
 
 ## Usage
 
