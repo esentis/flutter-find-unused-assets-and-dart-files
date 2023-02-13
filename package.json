@@ -2,9 +2,9 @@
   "name": "flutter-find-unused-assets-and-dart-files",
   "publisher": "esentis",
   "icon": "icon.png",
-  "displayName": "Flutter: Find unused assets and Dart files",
-  "description": "Find unused assets & files to clean up your project.",
-  "version": "0.0.3",
+  "displayName": "Flutter: Find Unused Dart Files & Assets",
+  "description": "Find unused assets, files and never referenced dependencies to clean up your project.",
+  "version": "0.0.4",
   "engines": {
     "vscode": "^1.75.0"
   },
