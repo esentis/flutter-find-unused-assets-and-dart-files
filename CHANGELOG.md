@@ -2,6 +2,10 @@
 
 All notable changes of the extension will be documented in this file.
 
+## [0.0.5]
+
+- Fixes dependency extraction
+
 ## [0.0.4]
 
 - Checks for ureferenced dependencies
