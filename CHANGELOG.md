@@ -2,6 +2,10 @@
 
 All notable changes of the extension will be documented in this file.
 
+## [1.0.0]
+
+- Rewrites the library using only TypeScript, making it platform agnostic
+
 ## [0.0.5]
 
 - Fixes dependency extraction
