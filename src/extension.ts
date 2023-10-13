@@ -1,149 +1,190 @@
-import { exec } from "child_process";
+import * as fs from "fs";
+import * as jsyaml from "js-yaml";
+import * as path from "path";
 import * as vscode from "vscode";
 
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
     "unused-assets.findUnusedAssets",
-    () => {
-      let channel = vscode.window.createOutputChannel("Unreferenced Assets");
-
+    async () => {
       const rootPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
       if (!rootPath) {
-        console.error("No workspace is open.");
+        vscode.window.showErrorMessage("No workspace is open.");
         return;
       }
-      const assetsPath = `${rootPath}/assets/`;
-      const libPath = `${rootPath}/lib/`;
+      const libPath = path.join(rootPath, "lib");
 
-      const shellFindUnusedAssets = `cd "${rootPath}" && 
-      find "${assetsPath}" -type f ! -name "*.ttf" ! -name "*.otf" -print0 | while read -d $'\\0' file; do
-        name="$(basename "$file")"
-        grep -rn -F -q "$name" "${libPath}"
-        if [ $? -ne 0 ]; then
-          echo "Unreferenced asset: $file"
-        fi
-      done
-      `;
+      const unreferencedAssets: string[] = await findUnreferencedAssets();
+      const unreferencedDependencies: string[] =
+        await findUnreferencedDependencies(libPath);
+      const unreferencedDartFiles: string[] = await findUnreferencedDartFiles();
 
-      vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: "Searching for unreferenced Assets...",
-          cancellable: true,
-        },
-        (progress, token) => {
-          return new Promise((resolve, reject) => {
-            exec(shellFindUnusedAssets, (error, stdout, stderr) => {
-              if (error) {
-                console.error(`exec error: ${error}`);
-                reject();
-                return;
-              }
-
-              if (token.isCancellationRequested) {
-                reject();
-                return;
-              }
-
-              channel.appendLine(stdout);
-              channel.show();
-              resolve(progress);
-            });
-          });
-        }
-      );
-
-      const shellFindUnusedDependencies = `cd "${rootPath}" && 
-      # Define the path to the pubspec.yaml file
-      pubspec_file="./pubspec.yaml"
-      
-      # Extract the dependencies section
-      deps_section=$(sed -n '/^dependencies:/,/^[^[:space:]]/p' "$pubspec_file")
-      
-      # Extract the dependencies
-      deps=$(echo "$deps_section" | grep -Eo '^  [a-zA-Z0-9_-]+: .*$' | awk '{print $1}' | sed 's/://g')
-    
-
-      # Assign the number of dependencies to a variable
-      dep_count=$(echo "$deps" | wc -w | xargs)
-      
-      # Echo the number of dependencies
-      echo "$dep_count dependencies found"
-
-      for dep in $deps; do
-          count=$(grep -R "import.*$dep" lib/ | wc -l)
-          if [ $count -eq 0 ]; then
-              echo "Unreferenced dependency: $dep"
-          fi
-      done
-      `;
-
-      vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: "Searching for unreferenced Dependencies...",
-          cancellable: true,
-        },
-        (progress, token) => {
-          return new Promise((resolve, reject) => {
-            exec(shellFindUnusedDependencies, (error, stdout, stderr) => {
-              if (error) {
-                console.error(`exec error: ${error}`);
-                reject();
-                return;
-              }
-
-              if (token.isCancellationRequested) {
-                reject();
-                return;
-              }
-
-              channel.appendLine(stdout);
-              channel.show();
-              resolve(progress);
-            });
-          });
-        }
-      );
-
-      const shellFindUnusedDartFiles = `cd "${rootPath}" && 
-      find lib/ -name "*.dart" -print0 | while read -d $'\\0' file; do
-        name="$(basename "$file")"
-        grep -rn -F -q "$name" lib/
-        if [ $? -ne 0 ]; then
-          echo "Unreferenced file: $file"
-        fi
-      done
-      `;
-      vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: "Searching for unreferenced Dart files...",
-          cancellable: true,
-        },
-        (progress, token) => {
-          return new Promise((resolve, reject) => {
-            exec(shellFindUnusedDartFiles, (error, stdout, stderr) => {
-              if (error) {
-                console.error(`exec error: ${error}`);
-                reject();
-                return;
-              }
-
-              if (token.isCancellationRequested) {
-                reject();
-                return;
-              }
-
-              channel.appendLine(stdout);
-              channel.show();
-              resolve(progress);
-            });
-          });
-        }
+      displayResults(
+        unreferencedAssets,
+        unreferencedDependencies,
+        unreferencedDartFiles
       );
     }
   );
 
   context.subscriptions.push(disposable);
+}
+
+async function findUnreferencedAssets(): Promise<string[]> {
+  const assetFiles = await vscode.workspace.findFiles(
+    `assets/**/*`,
+    `assets/fonts/**/*`,
+    10000
+  );
+  const assetNames = assetFiles.map((asset) => path.basename(asset.fsPath));
+
+  const dartFiles = await vscode.workspace.findFiles(
+    `lib/**/*.dart`,
+    null,
+    10000
+  );
+  const referencedAssets: Set<string> = new Set();
+
+  for (const dartFile of dartFiles) {
+    const dartContent = fs.readFileSync(dartFile.fsPath, "utf-8");
+    for (const asset of assetNames) {
+      const assetReference = `${asset}`;
+      if (dartContent.includes(assetReference)) {
+        referencedAssets.add(asset);
+      }
+    }
+  }
+
+  return assetNames.filter((asset) => !referencedAssets.has(asset));
+}
+
+async function findUnreferencedDependencies(
+  libPath: string
+): Promise<string[]> {
+  const pubspecPath = path.join(libPath, "..", "pubspec.yaml");
+  if (!fs.existsSync(pubspecPath)) {
+    return [];
+  }
+
+  const pubspecContent = fs.readFileSync(pubspecPath, "utf-8");
+  const pubspec = jsyaml.load(pubspecContent) as {
+    dependencies: { [key: string]: string };
+  };
+  const dependencies = pubspec.dependencies
+    ? Object.keys(pubspec.dependencies).filter(
+        (dep) => dep !== "flutter" && dep !== "flutter_test"
+      )
+    : [];
+
+  const dartFiles = await vscode.workspace.findFiles(
+    `lib/**/*.dart`,
+    null,
+    10000
+  );
+
+  const referencedDependencies: Set<string> = new Set();
+
+  for (const dartFile of dartFiles) {
+    const dartContent = fs.readFileSync(dartFile.fsPath, "utf-8");
+    for (const dep of dependencies) {
+      const depReference = `${dep}`;
+
+      if (dartContent.includes(depReference)) {
+        referencedDependencies.add(dep);
+      }
+    }
+  }
+
+  return dependencies.filter((dep) => !referencedDependencies.has(dep));
+}
+
+async function findUnreferencedDartFiles(): Promise<string[]> {
+  const dartFiles = await vscode.workspace.findFiles(
+    `lib/**/*.dart`,
+    null,
+    10000
+  );
+  const referencedDartFiles: Set<string> = new Set();
+
+  for (const dartFile of dartFiles) {
+    const dartFileName = path.basename(dartFile.fsPath);
+
+    for (const file of dartFiles) {
+      const dartContent = fs.readFileSync(file.fsPath, "utf-8");
+      if (
+        file.fsPath !== dartFile.fsPath &&
+        dartContent.includes(dartFileName)
+      ) {
+        referencedDartFiles.add(dartFileName);
+      }
+    }
+  }
+
+  return dartFiles
+    .map((file) => path.basename(file.fsPath))
+    .filter(
+      (fileName) =>
+        !referencedDartFiles.has(fileName) && fileName !== "main.dart"
+    );
+}
+
+function displayResults(
+  unreferencedAssets: string[],
+  unreferencedDependencies: string[],
+  unreferencedDartFiles: string[]
+) {
+  // Display the results in VSCode
+  const outputChannel = vscode.window.createOutputChannel(
+    "Unreferenced Assets"
+  );
+
+  const lineBreak: string = `---------------------------------`;
+  if (unreferencedAssets.length !== 0) {
+    outputChannel.appendLine(
+      `(${unreferencedAssets.length}) unreferenced assets`
+    );
+    outputChannel.appendLine(lineBreak);
+    unreferencedAssets.forEach((asset) => {
+      outputChannel.appendLine(asset);
+    });
+  } else {
+    outputChannel.appendLine("(0) unreferenced assets");
+    outputChannel.appendLine(lineBreak);
+  }
+
+  if (unreferencedDependencies.length !== 0) {
+    outputChannel.appendLine(
+      `\n(${unreferencedDependencies.length}) unreferenced dependencies`
+    );
+    outputChannel.appendLine(lineBreak);
+    unreferencedDependencies.forEach((dep) => {
+      outputChannel.appendLine(dep);
+    });
+  } else {
+    outputChannel.appendLine("\n(0) unreferenced dependencies");
+    outputChannel.appendLine(lineBreak);
+  }
+
+  if (unreferencedDartFiles.length !== 0) {
+    outputChannel.appendLine(
+      `\n(${unreferencedDartFiles.length}) unreferenced dart files`
+    );
+    outputChannel.appendLine(lineBreak);
+    unreferencedDartFiles.forEach((file) => {
+      outputChannel.appendLine(file);
+    });
+  } else {
+    outputChannel.appendLine("\n(0) unreferenced dart files");
+    outputChannel.appendLine(lineBreak);
+  }
+  if (
+    unreferencedDartFiles.length === 0 &&
+    unreferencedAssets.length === 0 &&
+    unreferencedDependencies.length === 0
+  ) {
+    outputChannel.appendLine(
+      "\nNo unreferenced assets, files or dependencies !"
+    );
+  }
+  outputChannel.show();
 }
