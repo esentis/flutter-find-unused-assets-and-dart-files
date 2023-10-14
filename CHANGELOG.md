@@ -2,6 +2,11 @@
 
 All notable changes of the extension will be documented in this file.
 
+## [1.0.1]
+
+- Improves performance
+- Adds loading indicator while scanning
+
 ## [1.0.0]
 
 - Rewrites the library using only TypeScript, making it platform agnostic
