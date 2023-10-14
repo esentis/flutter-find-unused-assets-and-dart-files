@@ -14,15 +14,33 @@ export function activate(context: vscode.ExtensionContext) {
       }
       const libPath = path.join(rootPath, "lib");
 
-      const unreferencedAssets: string[] = await findUnreferencedAssets();
-      const unreferencedDependencies: string[] =
-        await findUnreferencedDependencies(libPath);
-      const unreferencedDartFiles: string[] = await findUnreferencedDartFiles();
+      vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Window,
+          cancellable: false,
+          title: "Finding unreferenced resources to your project...",
+        },
+        async (progress) => {
+          progress.report({ increment: 0 });
 
-      displayResults(
-        unreferencedAssets,
-        unreferencedDependencies,
-        unreferencedDartFiles
+          const [
+            unreferencedAssets,
+            unreferencedDependencies,
+            unreferencedDartFiles,
+          ] = await Promise.all([
+            findUnreferencedAssets(),
+            findUnreferencedDependencies(libPath),
+            findUnreferencedDartFiles(),
+          ]);
+
+          displayResults(
+            unreferencedAssets,
+            unreferencedDependencies,
+            unreferencedDartFiles
+          );
+
+          progress.report({ increment: 100 });
+        }
       );
     }
   );
@@ -31,18 +49,13 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 async function findUnreferencedAssets(): Promise<string[]> {
-  const assetFiles = await vscode.workspace.findFiles(
-    `assets/**/*`,
-    `assets/fonts/**/*`,
-    10000
-  );
+  const [assetFiles, dartFiles] = await Promise.all([
+    vscode.workspace.findFiles(`assets/**/*`, `assets/fonts/**/*`, 10000),
+    vscode.workspace.findFiles(`lib/**/*.dart`, null, 10000),
+  ]);
+
   const assetNames = assetFiles.map((asset) => path.basename(asset.fsPath));
 
-  const dartFiles = await vscode.workspace.findFiles(
-    `lib/**/*.dart`,
-    null,
-    10000
-  );
   const referencedAssets: Set<string> = new Set();
 
   for (const dartFile of dartFiles) {
