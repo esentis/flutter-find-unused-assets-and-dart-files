@@ -2,6 +2,11 @@
 
 All notable changes of the extension will be documented in this file.
 
+## [1.0.2]
+
+- Outputs the relative path of the resource rather just the name
+- Improves the output layout
+
 ## [1.0.1]
 
 - Improves performance
