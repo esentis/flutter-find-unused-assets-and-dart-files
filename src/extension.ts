@@ -48,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable);
 }
 
-async function findUnreferencedAssets(): Promise<string[]> {
+async function findUnreferencedAssets(): Promise<Resource[]> {
   const [assetFiles, dartFiles] = await Promise.all([
     vscode.workspace.findFiles(`assets/**/*`, `assets/fonts/**/*`, 10000),
     vscode.workspace.findFiles(`lib/**/*.dart`, null, 10000),
@@ -68,7 +68,48 @@ async function findUnreferencedAssets(): Promise<string[]> {
     }
   }
 
-  return assetNames.filter((asset) => !referencedAssets.has(asset));
+  const unreferencedAssets: Resource[] = [];
+  for (const asset of assetFiles) {
+    const assetName = path.basename(asset.fsPath);
+    if (!referencedAssets.has(assetName)) {
+      unreferencedAssets.push(new Resource(assetName, asset.fsPath));
+    }
+  }
+
+  return unreferencedAssets;
+}
+
+async function findUnreferencedDartFiles(): Promise<Resource[]> {
+  const dartFiles = await vscode.workspace.findFiles(
+    `lib/**/*.dart`,
+    null,
+    10000
+  );
+  const referencedDartFiles: Set<string> = new Set();
+
+  for (const dartFile of dartFiles) {
+    const dartFileName = path.basename(dartFile.fsPath);
+
+    for (const file of dartFiles) {
+      const dartContent = fs.readFileSync(file.fsPath, "utf-8");
+      if (
+        file.fsPath !== dartFile.fsPath &&
+        dartContent.includes(dartFileName)
+      ) {
+        referencedDartFiles.add(dartFileName);
+      }
+    }
+  }
+
+  const unreferencedFiles: Resource[] = [];
+  for (const file of dartFiles) {
+    const fileName = path.basename(file.fsPath);
+    if (!referencedDartFiles.has(fileName) && fileName !== "main.dart") {
+      unreferencedFiles.push(new Resource(fileName, file.fsPath));
+    }
+  }
+
+  return unreferencedFiles;
 }
 
 async function findUnreferencedDependencies(
@@ -111,84 +152,65 @@ async function findUnreferencedDependencies(
   return dependencies.filter((dep) => !referencedDependencies.has(dep));
 }
 
-async function findUnreferencedDartFiles(): Promise<string[]> {
-  const dartFiles = await vscode.workspace.findFiles(
-    `lib/**/*.dart`,
-    null,
-    10000
-  );
-  const referencedDartFiles: Set<string> = new Set();
-
-  for (const dartFile of dartFiles) {
-    const dartFileName = path.basename(dartFile.fsPath);
-
-    for (const file of dartFiles) {
-      const dartContent = fs.readFileSync(file.fsPath, "utf-8");
-      if (
-        file.fsPath !== dartFile.fsPath &&
-        dartContent.includes(dartFileName)
-      ) {
-        referencedDartFiles.add(dartFileName);
-      }
-    }
-  }
-
-  return dartFiles
-    .map((file) => path.basename(file.fsPath))
-    .filter(
-      (fileName) =>
-        !referencedDartFiles.has(fileName) && fileName !== "main.dart"
-    );
-}
-
 function displayResults(
-  unreferencedAssets: string[],
+  unreferencedAssets: Resource[],
   unreferencedDependencies: string[],
-  unreferencedDartFiles: string[]
+  unreferencedDartFiles: Resource[]
 ) {
   // Display the results in VSCode
   const outputChannel = vscode.window.createOutputChannel(
     "Unreferenced Assets"
   );
 
-  const lineBreak: string = `---------------------------------`;
+  const br = "\n";
+  const line: string = `---------------------------------`;
   if (unreferencedAssets.length !== 0) {
+    outputChannel.appendLine(line);
     outputChannel.appendLine(
-      `(${unreferencedAssets.length}) unreferenced assets`
+      `${unreferencedAssets.length} unreferenced assets`
     );
-    outputChannel.appendLine(lineBreak);
-    unreferencedAssets.forEach((asset) => {
-      outputChannel.appendLine(asset);
+    outputChannel.appendLine(line);
+    unreferencedAssets.forEach((asset, index) => {
+      outputChannel.appendLine(`${index + 1}. ${asset.path}`);
     });
   } else {
-    outputChannel.appendLine("(0) unreferenced assets");
-    outputChannel.appendLine(lineBreak);
+    outputChannel.appendLine(line);
+    outputChannel.appendLine("0 unreferenced assets");
+    outputChannel.appendLine(line);
   }
 
   if (unreferencedDependencies.length !== 0) {
+    outputChannel.appendLine(br);
+    outputChannel.appendLine(line);
     outputChannel.appendLine(
-      `\n(${unreferencedDependencies.length}) unreferenced dependencies`
+      `${unreferencedDependencies.length} unreferenced dependencies`
     );
-    outputChannel.appendLine(lineBreak);
-    unreferencedDependencies.forEach((dep) => {
-      outputChannel.appendLine(dep);
+    outputChannel.appendLine(line);
+    unreferencedDependencies.forEach((dep, index) => {
+      outputChannel.appendLine(`${index + 1}. ${dep}`);
     });
   } else {
-    outputChannel.appendLine("\n(0) unreferenced dependencies");
-    outputChannel.appendLine(lineBreak);
+    outputChannel.appendLine(br);
+    outputChannel.appendLine(line);
+    outputChannel.appendLine("0 unreferenced dependencies");
+    outputChannel.appendLine(line);
   }
 
   if (unreferencedDartFiles.length !== 0) {
+    outputChannel.appendLine(br);
+    outputChannel.appendLine(line);
     outputChannel.appendLine(
-      `\n(${unreferencedDartFiles.length}) unreferenced dart files`
+      `${unreferencedDartFiles.length} unreferenced dart files`
     );
-    outputChannel.appendLine(lineBreak);
-    unreferencedDartFiles.forEach((file) => {
-      outputChannel.appendLine(file);
+    outputChannel.appendLine(line);
+    unreferencedDartFiles.forEach((file, index) => {
+      outputChannel.appendLine(`${index + 1}. ${file.path}`);
     });
   } else {
-    outputChannel.appendLine("\n(0) unreferenced dart files");
-    outputChannel.appendLine(lineBreak);
+    outputChannel.appendLine(br);
+    outputChannel.appendLine(line);
+    outputChannel.appendLine("0 unreferenced dart files");
+    outputChannel.appendLine(line);
   }
   if (
     unreferencedDartFiles.length === 0 &&
@@ -200,4 +222,8 @@ function displayResults(
     );
   }
   outputChannel.show();
+}
+
+class Resource {
+  constructor(public readonly name: string, public readonly path: string) {}
 }
