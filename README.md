@@ -1,3 +1,7 @@
+## Source
+
+[OpenVSX](https://open-vsx.org/extension/esentis/flutter-find-unused-assets-and-dart-files) | [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=esentis.flutter-find-unused-assets-and-dart-files)
+
 ## Introduction
 
 This extension allows you to find unused assets, Dart files & dependencies in your project. Simply open the command palette (<kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> or <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd>) and run the `Flutter: Find Unused Dart Files & Assets` command. The output will be displayed in the Output panel of Visual Studio Code.
@@ -5,7 +9,7 @@ This extension allows you to find unused assets, Dart files & dependencies in yo
 ## Features
 
 - Detects unused asset files in the `assets/` directory.
-- Detects unused dependencies listed in the `pubspec.yaml `file.
+- Detects unused dependencies listed in the `pubspec.yaml`file.
 - Detects unused Dart files in the `lib/` directory.
 
 ## Usage
